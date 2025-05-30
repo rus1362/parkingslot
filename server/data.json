@@ -1,0 +1,49 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "username": "admin",
+      "password": "azizjoon",
+      "role": "admin",
+      "penaltyPoints": 1,
+      "createdAt": "2025-05-30T16:27:05.140Z"
+    },
+    {
+      "id": 2,
+      "username": "user1",
+      "password": "azizjoon",
+      "role": "user",
+      "penaltyPoints": 14,
+      "createdAt": "2025-05-30T16:27:05.140Z",
+      "suspended": true
+    }
+  ],
+  "reservations": [],
+  "penalties": [],
+  "settings": [
+    {
+      "id": 1,
+      "key": "WEEKLY_PENALTY_MULTIPLIER",
+      "value": "1",
+      "updatedAt": "2025-05-30T20:56:54.681Z"
+    },
+    {
+      "id": 2,
+      "key": "LATE_CANCELLATION_PENALTY",
+      "value": "1",
+      "updatedAt": "2025-05-30T20:56:54.682Z"
+    },
+    {
+      "id": 3,
+      "key": "AUTO_SUSPEND_PENALTY_THRESHOLD",
+      "value": "5",
+      "updatedAt": "2025-05-30T20:56:54.683Z"
+    },
+    {
+      "id": 4,
+      "key": "STORAGE_BACKEND",
+      "value": "sqlitecloud",
+      "updatedAt": "2025-05-30T20:57:07.772Z"
+    }
+  ]
+}
