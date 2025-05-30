@@ -18,13 +18,17 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    const stored = localStorage.getItem("user");
+    return stored ? JSON.parse(stored) : null;
+  });
 
   const login = async (username: string, password: string): Promise<boolean> => {
     try {
       const response = await apiRequest("POST", "/api/auth/login", { username, password });
       const data = await response.json();
       setUser(data.user);
+      localStorage.setItem("user", JSON.stringify(data.user));
       return true;
     } catch (error) {
       console.error("Login failed:", error);
@@ -34,6 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     setUser(null);
+    localStorage.removeItem("user");
   };
 
   const isAdmin = () => {

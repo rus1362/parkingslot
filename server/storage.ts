@@ -6,6 +6,22 @@ import {
   type Settings, type InsertSettings,
   PARKING_SLOTS, DEFAULT_SETTINGS
 } from "@shared/schema";
+import fs from "fs";
+import path, { dirname } from "path";
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const DATA_FILE = path.resolve(__dirname, "data.json");
+
+function saveToFile(data: any) {
+  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+}
+
+function loadFromFile() {
+  if (!fs.existsSync(DATA_FILE)) return null;
+  return JSON.parse(fs.readFileSync(DATA_FILE, "utf-8"));
+}
 
 export interface IStorage {
   // User operations
@@ -58,8 +74,24 @@ export class MemStorage implements IStorage {
     this.currentReservationId = 1;
     this.currentPenaltyId = 1;
 
-    // Initialize with default admin user
-    this.initializeDefaultData();
+    const loaded = loadFromFile();
+    if (loaded) {
+      loaded.users.forEach((user: any) => this.users.set(user.id, user));
+      loaded.reservations.forEach((r: any) => this.reservations.set(r.id, r));
+      loaded.penalties.forEach((p: any) => this.penalties.set(p.id, p));
+      loaded.settings.forEach((s: any) => this.settings.set(s.key, s));
+      this.currentUserId = loaded.users.reduce((max: number, u: any) => Math.max(max, u.id), 0) + 1;
+      this.currentReservationId = loaded.reservations.reduce((max: number, r: any) => Math.max(max, r.id), 0) + 1;
+      this.currentPenaltyId = loaded.penalties.reduce((max: number, p: any) => Math.max(max, p.id), 0) + 1;
+      // If no users, add default admin and user
+      if (!loaded.users || loaded.users.length === 0) {
+        this.initializeDefaultData();
+        this.saveAll();
+      }
+    } else {
+      this.initializeDefaultData();
+      this.saveAll();
+    }
   }
 
   private initializeDefaultData() {
@@ -101,6 +133,15 @@ export class MemStorage implements IStorage {
     });
   }
 
+  private saveAll() {
+    saveToFile({
+      users: Array.from(this.users.values()),
+      reservations: Array.from(this.reservations.values()),
+      penalties: Array.from(this.penalties.values()),
+      settings: Array.from(this.settings.values()),
+    });
+  }
+
   // User operations
   async getUser(id: number): Promise<User | undefined> {
     return this.users.get(id);
@@ -119,6 +160,7 @@ export class MemStorage implements IStorage {
       createdAt: new Date(),
     };
     this.users.set(user.id, user);
+    this.saveAll();
     return user;
   }
 
@@ -128,11 +170,14 @@ export class MemStorage implements IStorage {
     
     const updatedUser = { ...user, ...updates };
     this.users.set(id, updatedUser);
+    this.saveAll();
     return updatedUser;
   }
 
   async deleteUser(id: number): Promise<boolean> {
-    return this.users.delete(id);
+    const result = this.users.delete(id);
+    this.saveAll();
+    return result;
   }
 
   async getAllUsers(): Promise<User[]> {
@@ -166,6 +211,7 @@ export class MemStorage implements IStorage {
       createdAt: new Date(),
     };
     this.reservations.set(reservation.id, reservation);
+    this.saveAll();
     return reservation;
   }
 
@@ -175,11 +221,14 @@ export class MemStorage implements IStorage {
     
     const updatedReservation = { ...reservation, ...updates };
     this.reservations.set(id, updatedReservation);
+    this.saveAll();
     return updatedReservation;
   }
 
   async deleteReservation(id: number): Promise<boolean> {
-    return this.reservations.delete(id);
+    const result = this.reservations.delete(id);
+    this.saveAll();
+    return result;
   }
 
   async getAllReservations(): Promise<Reservation[]> {
@@ -199,6 +248,7 @@ export class MemStorage implements IStorage {
       createdAt: new Date(),
     };
     this.penalties.set(penalty.id, penalty);
+    this.saveAll();
     return penalty;
   }
 
@@ -220,6 +270,7 @@ export class MemStorage implements IStorage {
       updatedAt: new Date(),
     };
     this.settings.set(key, setting);
+    this.saveAll();
     return setting;
   }
 
