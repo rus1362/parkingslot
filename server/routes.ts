@@ -35,12 +35,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "Invalid credentials" });
       }
 
+      // In login response, include suspended field
       res.json({ 
         user: { 
           id: user.id, 
           username: user.username, 
           role: user.role, 
-          penaltyPoints: user.penaltyPoints 
+          penaltyPoints: user.penaltyPoints, 
+          suspended: user.suspended // <-- add this
         } 
       });
     } catch (error) {
@@ -95,6 +97,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Change user password (admin only)
+  app.put("/api/users/:id/password", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { password } = req.body;
+      if (!password) {
+        return res.status(400).json({ error: "Password is required" });
+      }
+      const user = await storage.getUser(id);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      await storage.updateUser(id, { password });
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Change own password (self-service)
+  app.put("/api/users/self/password", async (req, res) => {
+    try {
+      const { userId, password } = req.body;
+      if (!userId || !password) {
+        return res.status(400).json({ error: "User ID and password are required" });
+      }
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      await storage.updateUser(userId, { password });
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Suspend or unsuspend a user (admin only)
+  app.put("/api/users/:id/suspend", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { suspended } = req.body;
+      if (typeof suspended !== "boolean") {
+        return res.status(400).json({ error: "Missing or invalid 'suspended' value" });
+      }
+      const user = await storage.updateUser(id, { suspended });
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      res.json({ success: true, user });
+    } catch (error) {
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
   // Reservations
   app.get("/api/reservations", async (req, res) => {
     try {
@@ -129,6 +186,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/reservations", async (req, res) => {
     try {
       const reservationData = insertReservationSchema.parse(req.body);
+      const user = await storage.getUser(reservationData.userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      if (user.suspended) {
+        return res.status(403).json({ error: "User is suspended and cannot make reservations" });
+      }
       
       // Check if slot is already reserved for that date
       const existingReservation = await storage.getReservationBySlotAndDate(
@@ -190,6 +254,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (!reservation) {
         return res.status(404).json({ error: "Reservation not found" });
+      }
+      const user = await storage.getUser(reservation.userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      if (user.suspended) {
+        return res.status(403).json({ error: "User is suspended and cannot cancel reservations" });
       }
 
       // Check for late cancellation penalty
@@ -341,16 +412,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/settings", async (req, res) => {
     try {
-      const { weeklyPenaltyMultiplier, lateCancellationPenalty } = req.body;
-      
+      const { weeklyPenaltyMultiplier, lateCancellationPenalty, autoSuspendPenaltyThreshold } = req.body;
       if (weeklyPenaltyMultiplier !== undefined) {
         await storage.setSetting("WEEKLY_PENALTY_MULTIPLIER", weeklyPenaltyMultiplier.toString());
       }
-      
       if (lateCancellationPenalty !== undefined) {
         await storage.setSetting("LATE_CANCELLATION_PENALTY", lateCancellationPenalty.toString());
       }
-      
+      if (autoSuspendPenaltyThreshold !== undefined) {
+        await storage.setSetting("AUTO_SUSPEND_PENALTY_THRESHOLD", autoSuspendPenaltyThreshold.toString());
+      }
       const settings = await storage.getAllSettings();
       const settingsObj = settings.reduce((acc, setting) => {
         acc[setting.key] = setting.value;

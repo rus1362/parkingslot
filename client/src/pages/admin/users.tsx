@@ -53,10 +53,11 @@ interface UserData {
   role: string;
   penaltyPoints: number;
   createdAt: string;
+  suspended?: boolean;
 }
 
 export default function Users() {
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, logout, isAdmin } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -65,6 +66,8 @@ export default function Users() {
     password: "",
     role: "user"
   });
+  const [passwordDialogUser, setPasswordDialogUser] = useState<UserData | null>(null);
+  const [newPassword, setNewPassword] = useState("");
 
   // Fetch all users
   const { data: users, isLoading } = useQuery<UserData[]>({
@@ -120,6 +123,69 @@ export default function Users() {
     },
   });
 
+  // Change user password mutation
+  const changePasswordMutation = useMutation({
+    mutationFn: async ({ userId, password }: { userId: number; password: string }) => {
+      return apiRequest("PUT", `/api/users/${userId}/password`, { password });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      toast({
+        title: "Password Changed",
+        description: "User password has been updated successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Change Failed",
+        description: error.message || "Failed to change password.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Change own password mutation (self-service)
+  const changeOwnPasswordMutation = useMutation({
+    mutationFn: async ({ userId, password }: { userId: number; password: string }) => {
+      return apiRequest("PUT", "/api/users/self/password", { userId, password });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Password Changed",
+        description: "Your password has been updated. Please log in again.",
+      });
+      logout();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Change Failed",
+        description: error.message || "Failed to change password.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Suspend/unsuspend user mutation
+  const suspendUserMutation = useMutation({
+    mutationFn: async ({ userId, suspended }: { userId: number; suspended: boolean }) => {
+      return apiRequest("PUT", `/api/users/${userId}/suspend`, { suspended });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      toast({
+        title: "User Updated",
+        description: "User suspension status updated.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Update Failed",
+        description: error.message || "Failed to update user.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleCreateUser = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newUser.username || !newUser.password) {
@@ -134,7 +200,7 @@ export default function Users() {
   };
 
   const getActiveReservationCount = (userId: number) => {
-    if (!allReservations) return 0;
+    if (!Array.isArray(allReservations)) return 0;
     return allReservations.filter((r: any) => r.userId === userId && r.status === "active").length;
   };
 
@@ -173,7 +239,6 @@ export default function Users() {
   return (
     <div className="flex-1 overflow-auto">
       <Header title="User Management" />
-      
       <main className="p-6 space-y-6">
         {/* Summary */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -216,77 +281,79 @@ export default function Users() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>All Users</CardTitle>
-              <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <UserPlus className="w-4 h-4 mr-2" />
-                    Add User
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Add New User</DialogTitle>
-                    <DialogDescription>
-                      Create a new user account. Admin users can manage other users and view analytics.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <form onSubmit={handleCreateUser}>
-                    <div className="space-y-4 py-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="username">Username</Label>
-                        <Input
-                          id="username"
-                          value={newUser.username}
-                          onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
-                          placeholder="Enter username"
-                          required
-                        />
+              {isAdmin() && (
+                <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button>
+                      <UserPlus className="w-4 h-4 mr-2" />
+                      Add User
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Add New User</DialogTitle>
+                      <DialogDescription>
+                        Create a new user account. Admin users can manage other users and view analytics.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleCreateUser}>
+                      <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="username">Username</Label>
+                          <Input
+                            id="username"
+                            value={newUser.username}
+                            onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
+                            placeholder="Enter username"
+                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="password">Password</Label>
+                          <Input
+                            id="password"
+                            type="password"
+                            value={newUser.password}
+                            onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                            placeholder="Enter password"
+                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="role">Role</Label>
+                          <Select 
+                            value={newUser.role} 
+                            onValueChange={(value) => setNewUser({ ...newUser, role: value })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="user">User</SelectItem>
+                              <SelectItem value="admin">Admin</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="password">Password</Label>
-                        <Input
-                          id="password"
-                          type="password"
-                          value={newUser.password}
-                          onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                          placeholder="Enter password"
-                          required
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="role">Role</Label>
-                        <Select 
-                          value={newUser.role} 
-                          onValueChange={(value) => setNewUser({ ...newUser, role: value })}
+                      <DialogFooter>
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          onClick={() => setIsAddDialogOpen(false)}
                         >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="user">User</SelectItem>
-                            <SelectItem value="admin">Admin</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    <DialogFooter>
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        onClick={() => setIsAddDialogOpen(false)}
-                      >
-                        Cancel
-                      </Button>
-                      <Button 
-                        type="submit" 
-                        disabled={createUserMutation.isPending}
-                      >
-                        {createUserMutation.isPending ? "Creating..." : "Create User"}
-                      </Button>
-                    </DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
+                          Cancel
+                        </Button>
+                        <Button 
+                          type="submit" 
+                          disabled={createUserMutation.isPending}
+                        >
+                          {createUserMutation.isPending ? "Creating..." : "Create User"}
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              )}
             </div>
           </CardHeader>
           <CardContent>
@@ -303,6 +370,7 @@ export default function Users() {
                     <TableHead>Created</TableHead>
                     <TableHead>Penalty Points</TableHead>
                     <TableHead>Active Reservations</TableHead>
+                    <TableHead>Status</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -326,39 +394,75 @@ export default function Users() {
                       </TableCell>
                       <TableCell>{getActiveReservationCount(user.id)}</TableCell>
                       <TableCell>
-                        {user.id !== currentUser?.id ? (
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="text-red-600 hover:text-red-700"
-                                disabled={deleteUserMutation.isPending}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Delete User</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to delete user "{user.username}"? 
-                                  This action cannot be undone and will remove all their reservations.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => deleteUserMutation.mutate(user.id)}
-                                  className="bg-red-600 hover:bg-red-700"
-                                >
-                                  Delete
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
+                        {user.suspended ? (
+                          <Badge variant="destructive">Suspended</Badge>
                         ) : (
-                          <span className="text-gray-400">-</span>
+                          <Badge variant="secondary">Active</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {isAdmin() && user.id !== currentUser?.id && (
+                          <Button
+                            variant={user.suspended ? "outline" : "destructive"}
+                            size="sm"
+                            onClick={() => suspendUserMutation.mutate({ userId: user.id, suspended: !user.suspended })}
+                            className={user.suspended ? "text-green-600 hover:text-green-700" : "text-white bg-red-600 hover:bg-red-700"}
+                          >
+                            {user.suspended ? "Unsuspend" : "Suspend"}
+                          </Button>
+                        )}
+                        {isAdmin() ? (
+                          user.id !== currentUser?.id ? (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-red-600 hover:text-red-700"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete User</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete user "{user.username}"? 
+                                    This action cannot be undone and will remove all their reservations.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => deleteUserMutation.mutate(user.id)}
+                                    className="bg-red-600 hover:bg-red-700"
+                                  >
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-blue-600 hover:text-blue-700 ml-2"
+                              onClick={() => setPasswordDialogUser(user)}
+                            >
+                              Change Password
+                            </Button>
+                          )
+                        ) : (
+                          user.id === currentUser?.id && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-blue-600 hover:text-blue-700 ml-2"
+                              onClick={() => setPasswordDialogUser(user)}
+                            >
+                              Change Password
+                            </Button>
+                          )
                         )}
                       </TableCell>
                     </TableRow>
@@ -368,6 +472,53 @@ export default function Users() {
             )}
           </CardContent>
         </Card>
+
+        {/* Password Change Dialog for self-service and admin */}
+        <Dialog open={!!passwordDialogUser} onOpenChange={() => setPasswordDialogUser(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Change Password</DialogTitle>
+              <DialogDescription>
+                {passwordDialogUser?.id === currentUser?.id
+                  ? "Set a new password for your account. You will be logged out after changing your password."
+                  : `Set a new password for user \"${passwordDialogUser?.username}\".`}
+              </DialogDescription>
+            </DialogHeader>
+            <form
+              onSubmit={e => {
+                e.preventDefault();
+                if (!newPassword) return;
+                if (passwordDialogUser?.id === currentUser?.id) {
+                  changeOwnPasswordMutation.mutate({ userId: currentUser!.id, password: newPassword });
+                } else if (isAdmin()) {
+                  changePasswordMutation.mutate({ userId: passwordDialogUser!.id, password: newPassword });
+                }
+                setPasswordDialogUser(null);
+                setNewPassword("");
+              }}
+            >
+              <div className="space-y-2 py-4">
+                <Label htmlFor="new-password">New Password</Label>
+                <Input
+                  id="new-password"
+                  type="password"
+                  value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                  placeholder="Enter new password"
+                  required
+                />
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setPasswordDialogUser(null)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={changeOwnPasswordMutation.isPending || changePasswordMutation.isPending}>
+                  {(changeOwnPasswordMutation.isPending || changePasswordMutation.isPending) ? "Changing..." : "Change Password"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
   );

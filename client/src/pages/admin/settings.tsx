@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 interface SettingsData {
   WEEKLY_PENALTY_MULTIPLIER: string;
   LATE_CANCELLATION_PENALTY: string;
+  AUTO_SUSPEND_PENALTY_THRESHOLD: string;
 }
 
 export default function Settings() {
@@ -21,7 +22,8 @@ export default function Settings() {
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState({
     weeklyPenaltyMultiplier: "1",
-    lateCancellationPenalty: "1"
+    lateCancellationPenalty: "1",
+    autoSuspendPenaltyThreshold: "90",
   });
 
   // Fetch current settings
@@ -34,7 +36,8 @@ export default function Settings() {
     if (settings) {
       setFormData({
         weeklyPenaltyMultiplier: settings.WEEKLY_PENALTY_MULTIPLIER || "1",
-        lateCancellationPenalty: settings.LATE_CANCELLATION_PENALTY || "1"
+        lateCancellationPenalty: settings.LATE_CANCELLATION_PENALTY || "1",
+        autoSuspendPenaltyThreshold: settings.AUTO_SUSPEND_PENALTY_THRESHOLD || "90",
       });
     }
   }, [settings]);
@@ -66,6 +69,7 @@ export default function Settings() {
     // Validate inputs
     const weeklyMultiplier = parseFloat(formData.weeklyPenaltyMultiplier);
     const lateCancelPenalty = parseFloat(formData.lateCancellationPenalty);
+    const autoSuspendThreshold = parseFloat(formData.autoSuspendPenaltyThreshold);
     
     if (isNaN(weeklyMultiplier) || weeklyMultiplier < 0) {
       toast({
@@ -84,6 +88,15 @@ export default function Settings() {
       });
       return;
     }
+
+    if (isNaN(autoSuspendThreshold) || autoSuspendThreshold < 1) {
+      toast({
+        title: "Invalid Input",
+        description: "Auto-suspend penalty threshold must be a positive number.",
+        variant: "destructive",
+      });
+      return;
+    }
     
     saveSettingsMutation.mutate(formData);
   };
@@ -91,7 +104,8 @@ export default function Settings() {
   const handleReset = () => {
     setFormData({
       weeklyPenaltyMultiplier: "1",
-      lateCancellationPenalty: "1"
+      lateCancellationPenalty: "1",
+      autoSuspendPenaltyThreshold: "90",
     });
   };
 
@@ -169,6 +183,21 @@ export default function Settings() {
                   />
                   <p className="text-sm text-gray-500">
                     Penalty points when cancelling less than 12 hours before reservation.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="autoSuspendPenaltyThreshold">Auto-Suspend Penalty Threshold</Label>
+                  <Input
+                    id="autoSuspendPenaltyThreshold"
+                    type="number"
+                    min={1}
+                    value={formData.autoSuspendPenaltyThreshold}
+                    onChange={e => setFormData({ ...formData, autoSuspendPenaltyThreshold: e.target.value })}
+                    required
+                  />
+                  <p className="text-xs text-gray-500">
+                    Users will be automatically suspended when their penalty points reach this value.
                   </p>
                 </div>
               </div>

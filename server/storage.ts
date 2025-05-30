@@ -151,24 +151,38 @@ export class MemStorage implements IStorage {
     return Array.from(this.users.values()).find(user => user.username === username);
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const user: User = {
-      ...insertUser,
+  // In createUser, set suspended to false by default if not provided
+  async createUser(user: InsertUser): Promise<User> {
+    const newUser: User = {
       id: this.currentUserId++,
-      role: insertUser.role || "user",
-      penaltyPoints: insertUser.penaltyPoints || 0,
+      username: user.username,
+      password: user.password,
+      role: user.role || "user",
+      penaltyPoints: user.penaltyPoints ?? 0,
       createdAt: new Date(),
+      suspended: false,
     };
-    this.users.set(user.id, user);
+    this.users.set(newUser.id, newUser);
     this.saveAll();
-    return user;
+    return newUser;
+  }
+
+  // Helper to get auto-suspend threshold
+  async getAutoSuspendThreshold(): Promise<number> {
+    const setting = await this.getSetting("AUTO_SUSPEND_PENALTY_THRESHOLD");
+    return setting ? parseInt(setting.value, 10) : 90;
   }
 
   async updateUser(id: number, updates: Partial<User>): Promise<User | undefined> {
     const user = this.users.get(id);
     if (!user) return undefined;
-    
-    const updatedUser = { ...user, ...updates };
+    let updatedUser = { ...user, ...updates };
+    if (typeof updatedUser.penaltyPoints === "number") {
+      const threshold = await this.getAutoSuspendThreshold();
+      if (updatedUser.penaltyPoints >= threshold) {
+        updatedUser.suspended = true;
+      }
+    }
     this.users.set(id, updatedUser);
     this.saveAll();
     return updatedUser;

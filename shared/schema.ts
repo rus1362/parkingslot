@@ -9,6 +9,7 @@ export const users = pgTable("users", {
   role: text("role").notNull().default("user"), // "admin" or "user"
   penaltyPoints: integer("penalty_points").notNull().default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  suspended: boolean("suspended").notNull().default(false),
 });
 
 export const reservations = pgTable("reservations", {
@@ -79,4 +80,5 @@ export const PENALTY_TYPES = {
 export const DEFAULT_SETTINGS = {
   WEEKLY_PENALTY_MULTIPLIER: "1",
   LATE_CANCELLATION_PENALTY: "1",
+  AUTO_SUSPEND_PENALTY_THRESHOLD: "90",
 } as const;

@@ -1,11 +1,12 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { apiRequest } from "@/lib/queryClient";
 
-interface User {
+export interface User {
   id: number;
   username: string;
   role: string;
   penaltyPoints: number;
+  suspended?: boolean;
 }
 
 interface AuthContextType {
@@ -29,6 +30,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data = await response.json();
       setUser(data.user);
       localStorage.setItem("user", JSON.stringify(data.user));
+      // If user is suspended, show a warning toast (optional, if you want to add a toast here)
       return true;
     } catch (error) {
       console.error("Login failed:", error);
@@ -44,6 +46,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isAdmin = () => {
     return user?.role === "admin";
   };
+
+  // Add effect to update user state if localStorage changes (e.g. after admin unsuspends)
+  useEffect(() => {
+    const handleStorage = () => {
+      const stored = localStorage.getItem("user");
+      setUser(stored ? JSON.parse(stored) : null);
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
 
   return (
     <AuthContext.Provider value={{ user, login, logout, isAdmin }}>

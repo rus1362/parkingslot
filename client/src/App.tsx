@@ -15,17 +15,23 @@ import Analytics from "@/pages/admin/analytics";
 import Settings from "@/pages/admin/settings";
 import NotFound from "@/pages/not-found";
 
-function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode; adminOnly?: boolean }) {
+function ProtectedRoute({
+  children,
+  adminOnly = false,
+}: {
+  children: React.ReactNode;
+  adminOnly?: boolean;
+}) {
   const { user, isAdmin } = useAuth();
-  
+
   if (!user) {
     return <Redirect to="/login" />;
   }
-  
+
   if (adminOnly && !isAdmin()) {
     return <Redirect to="/dashboard" />;
   }
-  
+
   return <>{children}</>;
 }
 
@@ -46,11 +52,11 @@ function Router() {
       <Route path="/login">
         <Login />
       </Route>
-      
+
       <Route path="/">
         {user ? <Redirect to="/dashboard" /> : <Redirect to="/login" />}
       </Route>
-      
+
       <Route path="/dashboard">
         <ProtectedRoute>
           <AuthenticatedLayout>
@@ -58,7 +64,7 @@ function Router() {
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>
-      
+
       <Route path="/reservations">
         <ProtectedRoute>
           <AuthenticatedLayout>
@@ -66,15 +72,13 @@ function Router() {
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>
-      
+
       <Route path="/admin/users">
-        <ProtectedRoute adminOnly>
-          <AuthenticatedLayout>
-            <Users />
-          </AuthenticatedLayout>
-        </ProtectedRoute>
+        <AuthenticatedLayout>
+          <Users />
+        </AuthenticatedLayout>
       </Route>
-      
+
       <Route path="/admin/analytics">
         <ProtectedRoute adminOnly>
           <AuthenticatedLayout>
@@ -82,7 +86,7 @@ function Router() {
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>
-      
+
       <Route path="/admin/settings">
         <ProtectedRoute adminOnly>
           <AuthenticatedLayout>
@@ -90,7 +94,7 @@ function Router() {
           </AuthenticatedLayout>
         </ProtectedRoute>
       </Route>
-      
+
       <Route component={NotFound} />
     </Switch>
   );

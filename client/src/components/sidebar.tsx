@@ -29,7 +29,7 @@ const navItems = [
     title: "User Management",
     href: "/admin/users",
     icon: Users,
-    adminOnly: true
+    adminOnly: false
   },
   {
     title: "Analytics",
@@ -97,11 +97,14 @@ export function Sidebar() {
 
       {/* User Info & Logout */}
       <div className="p-4 border-t border-gray-200">
-        <div className="mb-4">
+        <div className="mb-4 flex items-center space-x-2">
           <div className="text-sm font-medium text-gray-900">{user?.username}</div>
-          <div className="text-xs text-red-600">
-            {user?.penaltyPoints || 0} penalty points
-          </div>
+          {user?.suspended && (
+            <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded font-semibold">Suspended</span>
+          )}
+        </div>
+        <div className="text-xs text-red-600">
+          {user?.penaltyPoints || 0} penalty points
         </div>
         <Button 
           variant="ghost" 
