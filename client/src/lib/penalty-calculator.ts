@@ -4,7 +4,7 @@ import { getCurrentWeekStart } from "./date-utils";
 export interface PenaltyCalculation {
   points: number;
   reason: string;
-  type: "future_week" | "late_cancellation" | "none";
+  type: "future_week" | "late_cancellation" | "none" | "future_day";
 }
 
 export function calculateReservationPenalty(
@@ -12,24 +12,25 @@ export function calculateReservationPenalty(
   weeklyMultiplier: number = 1
 ): PenaltyCalculation {
   const resDate = new Date(reservationDate);
-  const currentWeekStart = getCurrentWeekStart();
-  const reservationWeekStart = startOfWeek(resDate, { weekStartsOn: 0 });
+  const now = new Date();
+  const daysDiff = Math.ceil(
+    (resDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+  );
 
-  if (reservationWeekStart <= currentWeekStart) {
+  if (daysDiff <= 10) {
     return {
       points: 0,
-      reason: "No penalty for current week",
+      reason: "No penalty for reservations made within the first 10 days",
       type: "none"
     };
   }
 
-  const weeksDiff = Math.abs(differenceInWeeks(reservationWeekStart, currentWeekStart));
-  const points = weeksDiff * weeklyMultiplier;
-
+  const penaltyPeriods = Math.ceil(daysDiff / 10) - 1; // Calculate the number of 10-day periods beyond the first penalty-free period
+  const points = penaltyPeriods * weeklyMultiplier;
   return {
     points,
-    reason: `${weeksDiff} week${weeksDiff > 1 ? 's' : ''} in advance`,
-    type: "future_week"
+    reason: `${penaltyPeriods} penalty period${penaltyPeriods > 1 ? 's' : ''} in advance`,
+    type: "future_day"
   };
 }
 

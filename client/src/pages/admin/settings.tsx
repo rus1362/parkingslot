@@ -2,7 +2,13 @@ import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Header } from "@/components/header";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
@@ -38,7 +44,8 @@ export default function Settings() {
       setFormData({
         weeklyPenaltyMultiplier: settings.WEEKLY_PENALTY_MULTIPLIER || "1",
         lateCancellationPenalty: settings.LATE_CANCELLATION_PENALTY || "1",
-        autoSuspendPenaltyThreshold: settings.AUTO_SUSPEND_PENALTY_THRESHOLD || "90",
+        autoSuspendPenaltyThreshold:
+          settings.AUTO_SUSPEND_PENALTY_THRESHOLD || "90",
       });
     }
   }, [settings]);
@@ -71,7 +78,7 @@ export default function Settings() {
       const response = await apiRequest("GET", "/api/storage-backend");
       const data = await response.json();
       return data as { backend: string };
-    }
+    },
   });
 
   useEffect(() => {
@@ -83,7 +90,9 @@ export default function Settings() {
   // Save storage backend mutation
   const saveBackendMutation = useMutation({
     mutationFn: async (newBackend: string) => {
-      const response = await apiRequest("PUT", "/api/storage-backend", { backend: newBackend });
+      const response = await apiRequest("PUT", "/api/storage-backend", {
+        backend: newBackend,
+      });
       const data = await response.json();
       return data;
     },
@@ -91,13 +100,15 @@ export default function Settings() {
       queryClient.invalidateQueries({ queryKey: ["/api/storage-backend"] });
       toast({
         title: "Storage backend updated successfully",
-        description: "The application will use the new storage backend for all operations.",
+        description:
+          "The application will use the new storage backend for all operations.",
       });
     },
     onError: () => {
       toast({
         title: "Failed to update storage backend",
-        description: "There was an error switching the storage backend. Please try again.",
+        description:
+          "There was an error switching the storage backend. Please try again.",
         variant: "destructive",
       });
     },
@@ -105,12 +116,14 @@ export default function Settings() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validate inputs
     const weeklyMultiplier = parseFloat(formData.weeklyPenaltyMultiplier);
     const lateCancelPenalty = parseFloat(formData.lateCancellationPenalty);
-    const autoSuspendThreshold = parseFloat(formData.autoSuspendPenaltyThreshold);
-    
+    const autoSuspendThreshold = parseFloat(
+      formData.autoSuspendPenaltyThreshold
+    );
+
     if (isNaN(weeklyMultiplier) || weeklyMultiplier < 0) {
       toast({
         title: "Invalid Input",
@@ -119,10 +132,10 @@ export default function Settings() {
       });
       return;
     }
-    
+
     if (isNaN(lateCancelPenalty) || lateCancelPenalty < 0) {
       toast({
-        title: "Invalid Input", 
+        title: "Invalid Input",
         description: "Late cancellation penalty must be a non-negative number.",
         variant: "destructive",
       });
@@ -132,12 +145,13 @@ export default function Settings() {
     if (isNaN(autoSuspendThreshold) || autoSuspendThreshold < 1) {
       toast({
         title: "Invalid Input",
-        description: "Auto-suspend penalty threshold must be a positive number.",
+        description:
+          "Auto-suspend penalty threshold must be a positive number.",
         variant: "destructive",
       });
       return;
     }
-    
+
     saveSettingsMutation.mutate(formData);
   };
 
@@ -164,7 +178,10 @@ export default function Settings() {
         <main className="p-6">
           <div className="space-y-4">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="h-32 bg-gray-100 rounded-lg animate-pulse" />
+              <div
+                key={i}
+                className="h-32 bg-gray-100 rounded-lg animate-pulse"
+              />
             ))}
           </div>
         </main>
@@ -175,7 +192,7 @@ export default function Settings() {
   return (
     <div className="flex-1 overflow-auto">
       <Header title="Settings" />
-      
+
       <main className="p-6 space-y-6">
         {/* Storage Backend Configuration */}
         <Card>
@@ -185,8 +202,8 @@ export default function Settings() {
               Storage Backend Configuration
             </CardTitle>
             <CardDescription>
-              Select the storage backend for the application.
-              This setting determines how data is stored and retrieved.
+              Select the storage backend for the application. This setting
+              determines how data is stored and retrieved.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -202,8 +219,8 @@ export default function Settings() {
                   <option value="json">JSON File Storage</option>
                   <option value="sqlitecloud">SQLiteCloud Database</option>
                 </select>
-                <Button 
-                  onClick={saveBackend} 
+                <Button
+                  onClick={saveBackend}
                   disabled={saveBackendMutation.isPending}
                   className="min-w-[100px]"
                 >
@@ -211,7 +228,7 @@ export default function Settings() {
                 </Button>
               </div>
               <p className="text-sm text-muted-foreground">
-                {storageBackend === "json" 
+                {storageBackend === "json"
                   ? "Using local JSON file storage. Data will be persisted in data.json."
                   : "Using SQLiteCloud database. Data will be persisted in the cloud."}
               </p>
@@ -237,23 +254,26 @@ export default function Settings() {
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label htmlFor="weeklyMultiplier">
-                    Future Week Penalty Multiplier
+                  <Label htmlFor="weeklyPenaltyMultiplier">
+                    Penalty Multiplier (per 10 days)
                   </Label>
                   <Input
-                    id="weeklyMultiplier"
+                    id="weeklyPenaltyMultiplier"
                     type="number"
                     min="0"
                     step="0.1"
                     value={formData.weeklyPenaltyMultiplier}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      weeklyPenaltyMultiplier: e.target.value
-                    })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        weeklyPenaltyMultiplier: e.target.value,
+                      })
+                    }
                     placeholder="1.0"
                   />
                   <p className="text-sm text-gray-500">
-                    Points multiplied by weeks ahead when reserving for future weeks.
+                    Points multiplied by weeks ahead when reserving for future
+                    weeks.
                   </p>
                 </div>
 
@@ -267,29 +287,40 @@ export default function Settings() {
                     min="0"
                     step="0.1"
                     value={formData.lateCancellationPenalty}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      lateCancellationPenalty: e.target.value
-                    })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        lateCancellationPenalty: e.target.value,
+                      })
+                    }
                     placeholder="1.0"
                   />
                   <p className="text-sm text-gray-500">
-                    Penalty points when cancelling less than 12 hours before reservation.
+                    Penalty points when cancelling less than 12 hours before
+                    reservation.
                   </p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="autoSuspendPenaltyThreshold">Auto-Suspend Penalty Threshold</Label>
+                  <Label htmlFor="autoSuspendPenaltyThreshold">
+                    Auto-Suspend Penalty Threshold
+                  </Label>
                   <Input
                     id="autoSuspendPenaltyThreshold"
                     type="number"
                     min={1}
                     value={formData.autoSuspendPenaltyThreshold}
-                    onChange={e => setFormData({ ...formData, autoSuspendPenaltyThreshold: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        autoSuspendPenaltyThreshold: e.target.value,
+                      })
+                    }
                     required
                   />
                   <p className="text-xs text-gray-500">
-                    Users will be automatically suspended when their penalty points reach this value.
+                    Users will be automatically suspended when their penalty
+                    points reach this value.
                   </p>
                 </div>
               </div>
@@ -297,23 +328,25 @@ export default function Settings() {
               <Separator />
 
               <div className="flex items-center justify-between">
-                <Button 
-                  type="button" 
-                  variant="outline" 
+                <Button
+                  type="button"
+                  variant="outline"
                   onClick={handleReset}
                   className="flex items-center"
                 >
                   <RotateCcw className="w-4 h-4 mr-2" />
                   Reset to Defaults
                 </Button>
-                
-                <Button 
+
+                <Button
                   type="submit"
                   disabled={saveSettingsMutation.isPending}
                   className="flex items-center"
                 >
                   <Save className="w-4 h-4 mr-2" />
-                  {saveSettingsMutation.isPending ? "Saving..." : "Save Settings"}
+                  {saveSettingsMutation.isPending
+                    ? "Saving..."
+                    : "Save Settings"}
                 </Button>
               </div>
             </form>
@@ -328,53 +361,94 @@ export default function Settings() {
               Penalty Calculation Examples
             </CardTitle>
             <CardDescription>
-              Examples of how penalty points are calculated with current settings.
+              Examples of how penalty points are calculated with current
+              settings.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
-                <h4 className="font-medium text-orange-900 mb-2">Future Week Reservations</h4>
+                <h4 className="font-medium text-orange-900 mb-2">
+                  Future days Reservations
+                </h4>
                 <div className="space-y-2 text-sm text-orange-800">
                   <div className="flex justify-between">
-                    <span>Reserving 2 days next week:</span>
-                    <Badge variant="outline" className="border-orange-300 text-orange-700">
-                      1 × {formData.weeklyPenaltyMultiplier} × 2 = {(1 * parseFloat(formData.weeklyPenaltyMultiplier) * 2).toFixed(1)} points
+                    <span>Reserving 2 days after next 10 days:</span>
+                    <Badge
+                      variant="outline"
+                      className="border-orange-300 text-orange-700"
+                    >
+                      1 × {formData.weeklyPenaltyMultiplier} × 2 ={" "}
+                      {(
+                        1 *
+                        parseFloat(formData.weeklyPenaltyMultiplier) *
+                        2
+                      ).toFixed(1)}{" "}
+                      points
                     </Badge>
                   </div>
                   <div className="flex justify-between">
-                    <span>Reserving 1 day, 2 weeks ahead:</span>
-                    <Badge variant="outline" className="border-orange-300 text-orange-700">
-                      2 × {formData.weeklyPenaltyMultiplier} × 1 = {(2 * parseFloat(formData.weeklyPenaltyMultiplier) * 1).toFixed(1)} points
+                    <span>Reserving 1 day, 10 days ahead:</span>
+                    <Badge
+                      variant="outline"
+                      className="border-orange-300 text-orange-700"
+                    >
+                      2 × {formData.weeklyPenaltyMultiplier} × 1 ={" "}
+                      {(
+                        2 *
+                        parseFloat(formData.weeklyPenaltyMultiplier) *
+                        1
+                      ).toFixed(1)}{" "}
+                      points
                     </Badge>
                   </div>
                   <div className="flex justify-between">
-                    <span>Reserving 3 days, 3 weeks ahead:</span>
-                    <Badge variant="outline" className="border-orange-300 text-orange-700">
-                      3 × {formData.weeklyPenaltyMultiplier} × 3 = {(3 * parseFloat(formData.weeklyPenaltyMultiplier) * 3).toFixed(1)} points
+                    <span>Reserving 3 days, 30 days ahead:</span>
+                    <Badge
+                      variant="outline"
+                      className="border-orange-300 text-orange-700"
+                    >
+                      3 × {formData.weeklyPenaltyMultiplier} × 3 ={" "}
+                      {(
+                        3 *
+                        parseFloat(formData.weeklyPenaltyMultiplier) *
+                        3
+                      ).toFixed(1)}{" "}
+                      points
                     </Badge>
                   </div>
                 </div>
               </div>
 
               <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                <h4 className="font-medium text-red-900 mb-2">Late Cancellation</h4>
+                <h4 className="font-medium text-red-900 mb-2">
+                  Late Cancellation
+                </h4>
                 <div className="space-y-2 text-sm text-red-800">
                   <div className="flex justify-between">
                     <span>Cancelling 8 hours before:</span>
-                    <Badge variant="outline" className="border-red-300 text-red-700">
+                    <Badge
+                      variant="outline"
+                      className="border-red-300 text-red-700"
+                    >
                       {formData.lateCancellationPenalty} points
                     </Badge>
                   </div>
                   <div className="flex justify-between">
                     <span>Cancelling 2 hours before:</span>
-                    <Badge variant="outline" className="border-red-300 text-red-700">
+                    <Badge
+                      variant="outline"
+                      className="border-red-300 text-red-700"
+                    >
                       {formData.lateCancellationPenalty} points
                     </Badge>
                   </div>
                   <div className="flex justify-between">
                     <span>Cancelling 24 hours before:</span>
-                    <Badge variant="outline" className="border-green-300 text-green-700">
+                    <Badge
+                      variant="outline"
+                      className="border-green-300 text-green-700"
+                    >
                       0 points (no penalty)
                     </Badge>
                   </div>
@@ -392,7 +466,9 @@ export default function Settings() {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
               <div className="flex justify-between">
-                <span className="font-medium text-gray-700">Total Parking Slots:</span>
+                <span className="font-medium text-gray-700">
+                  Total Parking Slots:
+                </span>
                 <Badge variant="outline">8 slots</Badge>
               </div>
               <div className="flex justify-between">
@@ -401,7 +477,10 @@ export default function Settings() {
               </div>
               <div className="flex justify-between">
                 <span className="font-medium text-gray-700">Data Storage:</span>
-                <Badge variant="outline" className="bg-yellow-50 border-yellow-300 text-yellow-700">
+                <Badge
+                  variant="outline"
+                  className="bg-yellow-50 border-yellow-300 text-yellow-700"
+                >
                   In-Memory (SQLite Ready)
                 </Badge>
               </div>

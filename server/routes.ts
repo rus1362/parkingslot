@@ -15,6 +15,12 @@ function getWeeksDifference(date1: Date, date2: Date): number {
   return Math.ceil(diffDays / 7);
 }
 
+// Helper function to calculate day difference
+function getDaysDifference(date1: Date, date2: Date): number {
+  const diffTime = Math.abs(date2.getTime() - date1.getTime());
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+}
+
 // Helper function to check if cancellation is late (< 12 hours)
 function isLateCancellation(reservationDate: string): boolean {
   const resDate = new Date(reservationDate);
@@ -244,7 +250,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         reservationDate.getDate() - reservationDate.getDay()
       );
 
-      if (reservationWeekStart > currentWeekStart) {
+      const daysDiff = getDaysDifference(currentDate, reservationDate);
+      if (daysDiff >= 10) {
+        console.log(`Reservation made ${daysDiff} days in advance. No penalty.`);
+      } else if (reservationWeekStart > currentWeekStart) {
         const weeksDiff = getWeeksDifference(
           currentWeekStart,
           reservationWeekStart

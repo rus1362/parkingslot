@@ -261,7 +261,12 @@ export class SQLiteCloudStorage implements IStorage {
       `Reservation Date: ${reservationDate}, Current Date: ${now}, Weeks Difference: ${weeksDifference}`
     );
 
-    if (weeksDifference >= 1) {
+    const daysDifference = Math.ceil(
+      (reservationDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    if (daysDifference >= 10) {
+      console.log(`Reservation made at least 10 days in advance. No penalty.`);
+    } else if (weeksDifference >= 1) {
       console.log(`Reservation canceled at least one week in advance.`);
       const user = await this.getUser(reservation.userId);
       if (user) {
