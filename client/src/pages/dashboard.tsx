@@ -41,29 +41,56 @@ export default function Dashboard() {
   const [selectedDate, setSelectedDate] = useState(getTodayString());
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
 
+  // Fetch user's reservations for stats
+  const { data: userReservations } = useQuery<any[]>({
+    queryKey: ["/api/reservations", { userId: user?.id }],
+    enabled: !!user,
+  });
+
+  // Fetch today's reservations for stats
+  const { data: todayReservations } = useQuery<any[]>({
+    queryKey: ["/api/reservations", { date: getTodayString() }],
+  });
+
+  // Fetch current settings for penalty calculation
+  const { data: settings } = useQuery<Record<string, string>>({
+    queryKey: ["/api/settings"],
+  });
+
   // Fetch parking slots availability for selected date
   const { data: slotsData, isLoading: slotsLoading } = useQuery<
     SlotAvailability[]
   >({
     queryKey: ["/api/parking-slots", { date: selectedDate }],
     enabled: !!selectedDate,
+    select: (data) => {
+      return data.map((slot) => ({
+        ...slot,
+        available: !userReservations?.some(
+          (reservation) =>
+            reservation.slot === slot.slot &&
+            reservation.date === selectedDate &&
+            reservation.status === "active"
+        ),
+      }));
+    },
   });
 
-  // Fetch user's reservations for stats
-  const { data: userReservations } = useQuery({
-    queryKey: ["/api/reservations", { userId: user?.id }],
+  // Fetch penalty points from the backend
+  const { data: userPenaltyPoints } = useQuery<number>({
+    queryKey: ["/api/users/penalty-points", { userId: user?.id }],
     enabled: !!user,
   });
 
-  // Fetch today's reservations for stats
-  const { data: todayReservations } = useQuery({
-    queryKey: ["/api/reservations", { date: getTodayString() }],
+  // Fetch penalties from the backend
+  const { data: penalties } = useQuery<any[]>({
+    queryKey: ["/api/penalties", { userId: user?.id }],
+    enabled: !!user,
   });
 
-  // Fetch current settings for penalty calculation
-  const { data: settings } = useQuery({
-    queryKey: ["/api/settings"],
-  });
+  const totalPenaltyPoints = Array.isArray(penalties) && penalties.length > 0
+    ? penalties.reduce((sum: number, p: any) => sum + (p.points || 0), 0)
+    : user?.penaltyPoints || 0;
 
   // Create reservation mutation
   const createReservationMutation = useMutation({
@@ -99,7 +126,7 @@ export default function Dashboard() {
     reservedToday: todayReservations?.length || 0,
     myActiveReservations:
       userReservations?.filter((r: any) => r.status === "active").length || 0,
-    myPenaltyPoints: user?.penaltyPoints || 0,
+    myPenaltyPoints: totalPenaltyPoints,
   };
 
   // Calculate penalty for selected date

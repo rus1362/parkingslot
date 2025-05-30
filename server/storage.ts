@@ -1,14 +1,23 @@
-import { 
-  users, reservations, penalties, settings,
-  type User, type InsertUser, 
-  type Reservation, type InsertReservation,
-  type Penalty, type InsertPenalty,
-  type Settings, type InsertSettings,
-  PARKING_SLOTS, DEFAULT_SETTINGS
+import {
+  users,
+  reservations,
+  penalties,
+  settings,
+  type User,
+  type InsertUser,
+  type Reservation,
+  type InsertReservation,
+  type Penalty,
+  type InsertPenalty,
+  type Settings,
+  type InsertSettings,
+  PARKING_SLOTS,
+  DEFAULT_SETTINGS,
 } from "@shared/schema";
 import fs from "fs";
 import path, { dirname } from "path";
-import { fileURLToPath } from 'url';
+import { fileURLToPath } from "url";
+import { sqliteCloudStorage } from "./sqlitecloud-storage";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -36,9 +45,15 @@ export interface IStorage {
   getReservation(id: number): Promise<Reservation | undefined>;
   getReservationsByUser(userId: number): Promise<Reservation[]>;
   getReservationsByDate(date: string): Promise<Reservation[]>;
-  getReservationBySlotAndDate(slot: string, date: string): Promise<Reservation | undefined>;
+  getReservationBySlotAndDate(
+    slot: string,
+    date: string
+  ): Promise<Reservation | undefined>;
   createReservation(reservation: InsertReservation): Promise<Reservation>;
-  updateReservation(id: number, updates: Partial<Reservation>): Promise<Reservation | undefined>;
+  updateReservation(
+    id: number,
+    updates: Partial<Reservation>
+  ): Promise<Reservation | undefined>;
   deleteReservation(id: number): Promise<boolean>;
   getAllReservations(): Promise<Reservation[]>;
 
@@ -80,9 +95,19 @@ export class MemStorage implements IStorage {
       loaded.reservations.forEach((r: any) => this.reservations.set(r.id, r));
       loaded.penalties.forEach((p: any) => this.penalties.set(p.id, p));
       loaded.settings.forEach((s: any) => this.settings.set(s.key, s));
-      this.currentUserId = loaded.users.reduce((max: number, u: any) => Math.max(max, u.id), 0) + 1;
-      this.currentReservationId = loaded.reservations.reduce((max: number, r: any) => Math.max(max, r.id), 0) + 1;
-      this.currentPenaltyId = loaded.penalties.reduce((max: number, p: any) => Math.max(max, p.id), 0) + 1;
+      this.currentUserId =
+        loaded.users.reduce((max: number, u: any) => Math.max(max, u.id), 0) +
+        1;
+      this.currentReservationId =
+        loaded.reservations.reduce(
+          (max: number, r: any) => Math.max(max, r.id),
+          0
+        ) + 1;
+      this.currentPenaltyId =
+        loaded.penalties.reduce(
+          (max: number, p: any) => Math.max(max, p.id),
+          0
+        ) + 1;
       // If no users, add default admin and user
       if (!loaded.users || loaded.users.length === 0) {
         this.initializeDefaultData();
@@ -103,6 +128,7 @@ export class MemStorage implements IStorage {
       role: "admin",
       penaltyPoints: 0,
       createdAt: new Date(),
+      suspended: false,
     };
     this.users.set(adminUser.id, adminUser);
 
@@ -114,6 +140,7 @@ export class MemStorage implements IStorage {
       role: "user",
       penaltyPoints: 0,
       createdAt: new Date(),
+      suspended: false,
     };
     this.users.set(testUser.id, testUser);
 
@@ -127,7 +154,7 @@ export class MemStorage implements IStorage {
 
     this.settings.set("LATE_CANCELLATION_PENALTY", {
       id: 2,
-      key: "LATE_CANCELLATION_PENALTY", 
+      key: "LATE_CANCELLATION_PENALTY",
       value: DEFAULT_SETTINGS.LATE_CANCELLATION_PENALTY,
       updatedAt: new Date(),
     });
@@ -148,7 +175,9 @@ export class MemStorage implements IStorage {
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(user => user.username === username);
+    return Array.from(this.users.values()).find(
+      (user) => user.username === username
+    );
   }
 
   // In createUser, set suspended to false by default if not provided
@@ -173,7 +202,10 @@ export class MemStorage implements IStorage {
     return setting ? parseInt(setting.value, 10) : 90;
   }
 
-  async updateUser(id: number, updates: Partial<User>): Promise<User | undefined> {
+  async updateUser(
+    id: number,
+    updates: Partial<User>
+  ): Promise<User | undefined> {
     const user = this.users.get(id);
     if (!user) return undefined;
     let updatedUser = { ...user, ...updates };
@@ -204,20 +236,29 @@ export class MemStorage implements IStorage {
   }
 
   async getReservationsByUser(userId: number): Promise<Reservation[]> {
-    return Array.from(this.reservations.values()).filter(r => r.userId === userId);
-  }
-
-  async getReservationsByDate(date: string): Promise<Reservation[]> {
-    return Array.from(this.reservations.values()).filter(r => r.date === date && r.status === "active");
-  }
-
-  async getReservationBySlotAndDate(slot: string, date: string): Promise<Reservation | undefined> {
-    return Array.from(this.reservations.values()).find(r => 
-      r.slot === slot && r.date === date && r.status === "active"
+    return Array.from(this.reservations.values()).filter(
+      (r) => r.userId === userId
     );
   }
 
-  async createReservation(insertReservation: InsertReservation): Promise<Reservation> {
+  async getReservationsByDate(date: string): Promise<Reservation[]> {
+    return Array.from(this.reservations.values()).filter(
+      (r) => r.date === date && r.status === "active"
+    );
+  }
+
+  async getReservationBySlotAndDate(
+    slot: string,
+    date: string
+  ): Promise<Reservation | undefined> {
+    return Array.from(this.reservations.values()).find(
+      (r) => r.slot === slot && r.date === date && r.status === "active"
+    );
+  }
+
+  async createReservation(
+    insertReservation: InsertReservation
+  ): Promise<Reservation> {
     const reservation: Reservation = {
       ...insertReservation,
       id: this.currentReservationId++,
@@ -229,10 +270,14 @@ export class MemStorage implements IStorage {
     return reservation;
   }
 
-  async updateReservation(id: number, updates: Partial<Reservation>): Promise<Reservation | undefined> {
+  async updateReservation(
+    id: number,
+    updates: Partial<Reservation>
+  ): Promise<Reservation | undefined> {
+    console.log("Updating reservation", id, updates);
     const reservation = this.reservations.get(id);
     if (!reservation) return undefined;
-    
+
     const updatedReservation = { ...reservation, ...updates };
     this.reservations.set(id, updatedReservation);
     this.saveAll();
@@ -251,7 +296,9 @@ export class MemStorage implements IStorage {
 
   // Penalty operations
   async getPenaltiesByUser(userId: number): Promise<Penalty[]> {
-    return Array.from(this.penalties.values()).filter(p => p.userId === userId);
+    return Array.from(this.penalties.values()).filter(
+      (p) => p.userId === userId
+    );
   }
 
   async createPenalty(insertPenalty: InsertPenalty): Promise<Penalty> {
@@ -294,8 +341,20 @@ export class MemStorage implements IStorage {
 
   // Utility operations
   getParkingSlots(): string[] {
-    return [...PARKING_SLOTS];
+    return ["24", "25", "37", "38", "39", "40", "41", "42"];
   }
 }
 
-export const storage = new MemStorage();
+export const memStorage = new MemStorage();
+
+let activeStorage: IStorage = memStorage;
+
+export async function getActiveStorage(): Promise<IStorage> {
+  // Try to read backend from settings
+  const backendSetting = await memStorage.getSetting("STORAGE_BACKEND");
+  const backend = backendSetting?.value || "json";
+  if (backend === "sqlitecloud") {
+    return sqliteCloudStorage;
+  }
+  return memStorage;
+}

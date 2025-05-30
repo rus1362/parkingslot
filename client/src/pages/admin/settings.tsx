@@ -25,6 +25,7 @@ export default function Settings() {
     lateCancellationPenalty: "1",
     autoSuspendPenaltyThreshold: "90",
   });
+  const [storageBackend, setStorageBackend] = useState("json");
 
   // Fetch current settings
   const { data: settings, isLoading } = useQuery<SettingsData>({
@@ -58,6 +59,45 @@ export default function Settings() {
       toast({
         title: "Save Failed",
         description: error.message || "Failed to save settings.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Fetch current storage backend
+  const { data: backendData } = useQuery<{ backend: string }>({
+    queryKey: ["/api/storage-backend"],
+    queryFn: async () => {
+      const response = await apiRequest("GET", "/api/storage-backend");
+      const data = await response.json();
+      return data as { backend: string };
+    }
+  });
+
+  useEffect(() => {
+    if (backendData) {
+      setStorageBackend(backendData.backend);
+    }
+  }, [backendData]);
+
+  // Save storage backend mutation
+  const saveBackendMutation = useMutation({
+    mutationFn: async (newBackend: string) => {
+      const response = await apiRequest("PUT", "/api/storage-backend", { backend: newBackend });
+      const data = await response.json();
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/storage-backend"] });
+      toast({
+        title: "Storage backend updated successfully",
+        description: "The application will use the new storage backend for all operations.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Failed to update storage backend",
+        description: "There was an error switching the storage backend. Please try again.",
         variant: "destructive",
       });
     },
@@ -109,6 +149,14 @@ export default function Settings() {
     });
   };
 
+  const handleBackendChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    setStorageBackend(event.target.value);
+  };
+
+  const saveBackend = () => {
+    saveBackendMutation.mutate(storageBackend);
+  };
+
   if (isLoading) {
     return (
       <div className="flex-1 overflow-auto">
@@ -129,6 +177,50 @@ export default function Settings() {
       <Header title="Settings" />
       
       <main className="p-6 space-y-6">
+        {/* Storage Backend Configuration */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <SettingsIcon className="w-5 h-5 mr-2" />
+              Storage Backend Configuration
+            </CardTitle>
+            <CardDescription>
+              Select the storage backend for the application.
+              This setting determines how data is stored and retrieved.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="storage-backend">Storage Backend</Label>
+              <div className="flex items-center gap-4">
+                <select
+                  id="storage-backend"
+                  value={storageBackend}
+                  onChange={handleBackendChange}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <option value="json">JSON File Storage</option>
+                  <option value="sqlitecloud">SQLiteCloud Database</option>
+                </select>
+                <Button 
+                  onClick={saveBackend} 
+                  disabled={saveBackendMutation.isPending}
+                  className="min-w-[100px]"
+                >
+                  {saveBackendMutation.isPending ? "Saving..." : "Save"}
+                </Button>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {storageBackend === "json" 
+                  ? "Using local JSON file storage. Data will be persisted in data.json."
+                  : "Using SQLiteCloud database. Data will be persisted in the cloud."}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Separator />
+
         {/* Penalty Configuration */}
         <Card>
           <CardHeader>

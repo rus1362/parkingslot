@@ -67,7 +67,7 @@ export default function Reservations() {
   // Cancel reservation mutation
   const cancelReservationMutation = useMutation({
     mutationFn: async (reservationId: number) => {
-      return apiRequest("DELETE", `/api/reservations/${reservationId}`);
+      return apiRequest("POST", `/api/reservations/${reservationId}/cancel`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/reservations"] });
@@ -81,7 +81,6 @@ export default function Reservations() {
       toast({
         title: "Cancellation Failed",
         description: error.message || "Failed to cancel reservation.",
-        variant: "destructive",
       });
     },
   });
