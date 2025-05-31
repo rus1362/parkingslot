@@ -42,7 +42,7 @@
     {
       "id": 4,
       "key": "STORAGE_BACKEND",
-      "value": "sqlitecloud",
+      "value": "json",
       "updatedAt": "2025-05-30T20:57:07.772Z"
     }
   ]
