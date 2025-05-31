@@ -18,7 +18,16 @@
       "suspended": true
     }
   ],
-  "reservations": [],
+  "reservations": [
+    {
+      "userId": 1,
+      "slot": "24",
+      "date": "2025-05-31",
+      "status": "active",
+      "id": 1,
+      "createdAt": "2025-05-31T12:58:52.985Z"
+    }
+  ],
   "penalties": [],
   "settings": [
     {
